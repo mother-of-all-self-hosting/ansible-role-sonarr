@@ -25,7 +25,7 @@
 # `renovate[bot]` subject containing "docker tag to " and "sonarr":
 #
 # - a squashed Renovate pull request appends its number to the subject, so
-#   "Update lscr.io/linuxserver/sonarr Docker tag to v4.0.19 (#7)" yielded the
+#   "Update ghcr.io/linuxserver/sonarr Docker tag to v4.0.19 (#7)" yielded the
 #   tag name `v4.0.19 (#7)-0`, which git refuses outright
 # - a hand-written version bump was never released at all, because no commit
 #   by `renovate[bot]` matched

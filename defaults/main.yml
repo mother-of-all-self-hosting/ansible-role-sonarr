@@ -16,7 +16,15 @@ sonarr_identifier: sonarr
 sonarr_base_path: "/{{ sonarr_identifier }}"
 sonarr_data_path: "{{ sonarr_base_path }}/data"
 
-# renovate: datasource=docker depName=lscr.io/linuxserver/sonarr versioning=semver
+# The image below is pulled from lscr.io, but Renovate is pointed at ghcr.io, which lscr.io
+# is a front end for: it answers its 401 with `realm="https://ghcr.io/token"` and serves the
+# same digests. The distinction matters because Renovate pages through a registry's tag list
+# oldest-first and stops after `dockerMaxPages` (20) pages of 1000, unless the registry host
+# is one it knows needs all pages - a list that has `ghcr.io` on it but not `lscr.io`.
+# linuxserver/sonarr is at 6287 tags, so lscr.io still works today, but the day it passes
+# 20000 the newest tags fall off the end and Renovate stops proposing updates silently.
+#
+# renovate: datasource=docker depName=ghcr.io/linuxserver/sonarr versioning=semver
 sonarr_version: 4.0.19
 
 sonarr_uid: ""

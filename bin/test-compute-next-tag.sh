@@ -44,7 +44,7 @@ write_defaults() {
 		---
 		sonarr_identifier: sonarr
 
-		# renovate: datasource=docker depName=lscr.io/linuxserver/sonarr versioning=semver
+		# renovate: datasource=docker depName=ghcr.io/linuxserver/sonarr versioning=semver
 		# sonarr_version: 4.0.14
 		sonarr_version: $1
 
@@ -163,7 +163,7 @@ expect 'a revert' v4.0.18-2 "$(merge "$revert_version && $edit_task")"
 # commit-message-driven workflow this replaced used to tag from.
 scenario 'Decoys around the version variable'
 expect 'a task tagged from the real version' v4.0.18-2 "$(merge "$edit_task")"
-git commit -q --allow-empty -m 'Update lscr.io/linuxserver/sonarr Docker tag to v9.9.9 (#7)'
+git commit -q --allow-empty -m 'Update ghcr.io/linuxserver/sonarr Docker tag to v9.9.9 (#7)'
 expect 'an empty commit claiming another version' '' "$(bin/compute-next-tag.sh 2>/dev/null)"
 
 # Sonarr's own versions carry a fourth component (4.0.19.2979), while the
