@@ -59,3 +59,11 @@ just prek-install-git-pre-commit-hook
 This role supports [Molecule](https://docs.ansible.com/projects/molecule/), an Ansible testing framework designed for developing and testing Ansible collections, playbooks, and roles.
 
 Refer to [this page](./molecule/README.md) for details about how to utilize it.
+
+### Releases
+
+Releases are tagged automatically. `.github/workflows/autotag.yml` runs [`bin/compute-next-tag.sh`](./bin/compute-next-tag.sh) on every push, and that script derives the tag from `sonarr_version` in [`defaults/main.yml`](defaults/main.yml) and from the tags that already exist — never from commit messages. A commit that touches only documentation or CI is not released.
+
+[`bin/test-compute-next-tag.sh`](./bin/test-compute-next-tag.sh) exercises the computation against throwaway repositories. It runs as a pre-commit hook whenever the script or `defaults/main.yml` changes, and can be run by hand at any time.
+
+Sonarr's own version bumps are *not* automerged, not even at the patch level: Sonarr migrates its SQLite database on every start, forward-only, and the linuxserver.io tag family this role tracks truncates Sonarr's four-component versions to three, so its entire 4.0.x release stream looks patch-level to Renovate. See the `description` in [`.github/renovate.json`](.github/renovate.json).
