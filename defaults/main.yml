@@ -60,7 +60,12 @@ sonarr_container_network: "{{ sonarr_identifier }}"
 # Control if the container network is deleted on uninstalling.
 sonarr_container_network_deletion_enabled: true
 
-# The port Sonarr is running on inside the container
+# The port Sonarr is running on inside the container.
+#
+# The role passes this to Sonarr as `SONARR__SERVER__PORT` (see `../templates/env.j2`),
+# which overrides the `<Port>` value that Sonarr keeps in `/config/config.xml`.
+# Changing it here therefore moves the application itself, not merely the Traefik
+# service label and the published port.
 sonarr_container_http_port: 8989
 
 # Controls whether the container exposes a port (tcp/8989 in the container)
