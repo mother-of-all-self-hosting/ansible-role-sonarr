@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2026 spatterlight
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -11,6 +12,8 @@ dependency:
 driver:
   name: docker
 platforms:
+  # The name embeds both the role and the scenario, so that parallel runs of
+  # other roles (or of another scenario of this one) cannot collide on it.
   - name: sonarr-${MOLECULE_DISTRO:-ubuntu2604}-default
     image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2604}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
@@ -19,8 +22,6 @@ platforms:
     cgroupns_mode: host
     privileged: true
     pre_build_image: true
-    published_ports:
-      - 127.0.0.1:8989:8989
 provisioner:
   name: ansible
   config_options:
@@ -32,12 +33,53 @@ provisioner:
         # Helper variables
         sonarr_debug_service_enabled: false
 
+        # Where the extra bind-mount that exercises
+        # `sonarr_container_additional_volumes` comes from, and what it holds.
+        sonarr_molecule_extra_volume_host_path: /mash-sonarr-molecule-extra
+        sonarr_molecule_extra_volume_container_path: /extra
+        sonarr_molecule_extra_volume_marker: only-a-real-bind-mount-can-read-this
+
+        # The container network that exercises
+        # `sonarr_container_additional_networks`. The role does not create
+        # these networks, so prepare.yml does.
+        sonarr_molecule_extra_network: sonarr-molecule-extra
+
+        # Pacific/Kiritimati is UTC+14 all year round, and is nothing like the
+        # `Etc/UTC` the role defaults to or the UTC the image would otherwise
+        # use, so the offset the container reports can only have come from the
+        # role's own env file.
+        sonarr_molecule_expected_timezone_offset: "+1400"
+
         # Variables for Sonarr
-        sonarr_uid: 1000
-        sonarr_gid: 1000
-        sonarr_hostname: localhost
-        sonarr_container_labels_traefik_enabled: false
-        sonarr_container_http_bind_port: 8989
+        sonarr_uid: 1971
+        sonarr_gid: 1971
+        sonarr_hostname: sonarr.example.com
+        sonarr_path_prefix: /sonarr
+        sonarr_timezone: Pacific/Kiritimati
+
+        # Deliberately not the 8989 that the image exposes and that Sonarr
+        # defaults to, so that a Sonarr which ignored the role's port setting
+        # would answer on neither the published port nor this one.
+        sonarr_container_http_port: 8181
+        sonarr_container_http_bind_port: "127.0.0.1:8181"
+
+        sonarr_container_additional_networks_custom:
+          - sonarr-molecule-extra
+
+        sonarr_container_additional_volumes:
+          - type: bind
+            src: /mash-sonarr-molecule-extra
+            dst: /extra
+            options: readonly
+
+        sonarr_container_extra_arguments:
+          - "--label=mash.molecule.extra_argument=present"
+
+        sonarr_environment_variables_additional_variables: |
+          SONARR_MOLECULE_MARKER=rendered-by-the-role
+
+        sonarr_container_labels_additional_labels: |
+          mash.molecule.additional_label=present
   env:
     # Workaround for https://github.com/ansible/molecule/issues/4391
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
