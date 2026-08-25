@@ -3,7 +3,7 @@ galaxy_info:
   author: spatterlight
   company: spatterlight
   role_name: sonarr
-  namespace: spatterlight
+  namespace: mash
   description: An Ansible role for installing Sonarr, the smart PVR for newsgroup and bittorrent users
   platforms:
     - name: Debian
