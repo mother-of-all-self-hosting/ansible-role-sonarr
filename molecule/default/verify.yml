@@ -115,7 +115,7 @@
           - sonarr_config_stat.stat.gid | int == sonarr_gid | int
         fail_msg: >-
           {{ sonarr_molecule_data_path }}/config.xml is owned by
-          {{ sonarr_config_stat.stat.uid | default('nothing') }}:{{ sonarr_config_stat.stat.gid | default('nothing') }},
+          {{ sonarr_config_stat.stat.uid | default('none') }}:{{ sonarr_config_stat.stat.gid | default('none') }},
           not by {{ sonarr_uid }}:{{ sonarr_gid }}
         success_msg: "Sonarr wrote {{ sonarr_molecule_data_path }}/config.xml as {{ sonarr_uid }}:{{ sonarr_gid }}"
 
