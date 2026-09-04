@@ -37,14 +37,13 @@
     sonarr_molecule_data_path: /sonarr/data
 
   tasks:
-    - name: Read the role's own defaults
-      # Only leaf literals may be read out of this: anything Jinja-derived
-      # cannot resolve here, and anything the scenario tunes must come from
-      # this playbook's own variables instead, because a bare `include_vars`
-      # would outrank the scenario's group_vars.
+    # The role is not included in this playbook, so its defaults are not in
+    # scope. Reading defaults/main.yml directly ties the version assertion
+    # below.
+    - name: Load the role defaults
       ansible.builtin.include_vars:
         file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
-        name: sonarr_role_defaults
+        name: sonarr_defaults
 
     - name: Wait for the Sonarr systemd unit to report itself active
       ansible.builtin.systemd_service:
@@ -161,7 +160,7 @@
 
     - name: Read the timezone offset inside the Sonarr container
       ansible.builtin.command:
-        cmd: "docker exec {{ sonarr_role_defaults.sonarr_identifier }} date +%z"
+        cmd: "docker exec {{ sonarr_defaults.sonarr_identifier }} date +%z"
       register: sonarr_container_timezone
       changed_when: false
 
@@ -175,7 +174,7 @@
 
     - name: Inspect the Sonarr container
       ansible.builtin.command:
-        cmd: "docker container inspect {{ sonarr_role_defaults.sonarr_identifier }}"
+        cmd: "docker container inspect {{ sonarr_defaults.sonarr_identifier }}"
       register: sonarr_container_inspect
       changed_when: false
 
@@ -214,7 +213,7 @@
     - name: Read the marker through the additional volume
       ansible.builtin.command:
         cmd: >-
-          docker exec {{ sonarr_role_defaults.sonarr_identifier }}
+          docker exec {{ sonarr_defaults.sonarr_identifier }}
           cat {{ sonarr_molecule_extra_volume_container_path }}/marker
       register: sonarr_extra_volume_marker
       changed_when: false
@@ -228,7 +227,7 @@
     - name: Assert the container joined both its own network and the additional one
       ansible.builtin.assert:
         that:
-          - sonarr_role_defaults.sonarr_identifier in sonarr_container.NetworkSettings.Networks
+          - sonarr_defaults.sonarr_identifier in sonarr_container.NetworkSettings.Networks
           - sonarr_molecule_extra_network in sonarr_container.NetworkSettings.Networks
         fail_msg: >-
           The container is on {{ sonarr_container.NetworkSettings.Networks.keys() | list }},
@@ -243,7 +242,7 @@
       ansible.builtin.assert:
         that:
           - sonarr_container.Config.Labels['traefik.enable'] == 'true'
-          - sonarr_container.Config.Labels['traefik.docker.network'] == sonarr_role_defaults.sonarr_identifier
+          - sonarr_container.Config.Labels['traefik.docker.network'] == sonarr_defaults.sonarr_identifier
           - "sonarr_container.Config.Labels['traefik.http.routers.sonarr.rule'] == 'Host(`sonarr.example.com`) && PathPrefix(`/sonarr`)'"
           - sonarr_container.Config.Labels['traefik.http.routers.sonarr.middlewares'] == 'sonarr-slashless-redirect,sonarr-strip-prefix'
           - sonarr_container.Config.Labels['traefik.http.middlewares.sonarr-strip-prefix.stripprefix.prefixes'] == '/sonarr'
