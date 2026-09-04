@@ -292,12 +292,11 @@
           sonarr_container_labels_traefik_enabled set to false
         success_msg: "templates/labels.j2 emits no Traefik labels when Traefik is disabled"
 
-    - name: Show what the Sonarr Molecule run established
+    - name: Show the Sonarr verification summary
       ansible.builtin.debug:
         msg:
-          - "systemd unit: {{ sonarr_service.status.ActiveState }}"
-          - "/ping on port {{ sonarr_container_http_port }}: {{ sonarr_ping.json.status }}"
-          - "running version: {{ sonarr_status.json.version }} (package {{ sonarr_status.json.packageVersion }})"
-          - "pinned sonarr_version: {{ sonarr_role_defaults.sonarr_version }}"
-          - "container timezone offset: {{ sonarr_container_timezone.stdout | trim }}"
-          - "networks: {{ sonarr_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
+          - "Sonarr systemd: {{ sonarr_service.status.ActiveState }}"
+          - "Sonarr version: {{ sonarr_status.json.version }} (package {{ sonarr_status.json.packageVersion }})"
+          - "Sonarr /ping on port {{ sonarr_container_http_port }}: {{ sonarr_ping.json.status }}"
+          - "Sonarr container timezone offset: {{ sonarr_container_timezone.stdout | trim }}"
+          - "Sonarr networks: {{ sonarr_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
