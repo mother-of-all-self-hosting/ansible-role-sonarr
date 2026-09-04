@@ -138,25 +138,19 @@
     # linuxserver.io tag the role pins has three (4.0.19), so the pinned value
     # is matched as a prefix - with a trailing dot, so that 4.0.1 could never
     # be satisfied by a running 4.0.19.
-    - name: Assert Sonarr is running the version defaults/main.yml pins
+    - name: Assert the running Sonarr is the version this role installs
       ansible.builtin.assert:
         that:
           - >-
-            sonarr_status.json.version == sonarr_role_defaults.sonarr_version
-            or sonarr_status.json.version.startswith(sonarr_role_defaults.sonarr_version ~ '.')
+            sonarr_status.json.version == sonarr_defaults.sonarr_version
+            or sonarr_status.json.version.startswith(sonarr_defaults.sonarr_version ~ '.')
           - >-
-            sonarr_status.json.packageVersion == sonarr_role_defaults.sonarr_version
-            or sonarr_status.json.packageVersion.startswith(sonarr_role_defaults.sonarr_version ~ '.')
+            sonarr_status.json.packageVersion == sonarr_defaults.sonarr_version
+            or sonarr_status.json.packageVersion.startswith(sonarr_defaults.sonarr_version ~ '.')
           - sonarr_status.json.isDocker
           - sonarr_status.json.appData == '/config'
-        fail_msg: >-
-          Sonarr reports version {{ sonarr_status.json.version | default('none') }}
-          (package {{ sonarr_status.json.packageVersion | default('none') }}),
-          which does not match the pinned sonarr_version {{ sonarr_role_defaults.sonarr_version }}
-        success_msg: >-
-          Sonarr reports version {{ sonarr_status.json.version | default('none') }}
-          (package {{ sonarr_status.json.packageVersion | default('none') }}),
-          matching the pinned sonarr_version {{ sonarr_role_defaults.sonarr_version }}
+        fail_msg: "Sonarr reports {{ sonarr_status.json.version | default('none') }}, expected {{ sonarr_defaults.sonarr_version }}"
+        success_msg: "Sonarr reports {{ sonarr_status.json.version }}"
 
     - name: Read the timezone offset inside the Sonarr container
       ansible.builtin.command:
