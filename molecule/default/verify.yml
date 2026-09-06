@@ -169,12 +169,12 @@
     - name: Inspect the Sonarr container
       ansible.builtin.command:
         cmd: "docker container inspect {{ sonarr_defaults.sonarr_identifier }}"
-      register: sonarr_container_inspect
+      register: sonarr_container_raw
       changed_when: false
 
     - name: Keep the parts of the container definition worth asserting on
       ansible.builtin.set_fact:
-        sonarr_container: "{{ (sonarr_container_inspect.stdout | from_json) | first }}"
+        sonarr_container: "{{ (sonarr_container_raw.stdout | from_json) | first }}"
 
     - name: Assert the role's environment reached the container
       ansible.builtin.assert:
