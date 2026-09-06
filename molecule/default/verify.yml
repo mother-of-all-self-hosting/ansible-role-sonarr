@@ -124,7 +124,7 @@
         sonarr_api_key: >-
           {{ sonarr_config_xml.content | b64decode | regex_search('<ApiKey>([0-9a-fA-F]+)</ApiKey>', '\1') | first }}
 
-    - name: Ask Sonarr what version it is running
+    - name: Query the version of the running Sonarr
       ansible.builtin.uri:
         url: "http://127.0.0.1:{{ sonarr_container_http_port }}/api/v3/system/status"
         method: GET
