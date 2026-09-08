@@ -45,22 +45,27 @@
         file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
         name: sonarr_defaults
 
-    - name: Wait for the Sonarr systemd unit to report itself active
+    - name: Wait for the Sonarr systemd service to become active (up to 180s)
       ansible.builtin.systemd_service:
         name: sonarr.service
       register: sonarr_service
-      until: sonarr_service.status.ActiveState | default('') == 'active'
-      retries: 24
+      until: sonarr_service.status.ActiveState == 'active'
+      retries: 36
       delay: 5
+      # So that giving up is reported by the assertion below rather than as a
+      # wall of systemd unit properties.
       failed_when: false
 
-    - name: Assert the Sonarr systemd unit is active
+    # `Restart=always` in the systemd unit means that even a container which crashes
+    # and gets restarted reads as active here, so this is a precondition rather than
+    # a result.
+    - name: Assert the Sonarr systemd service is active
       ansible.builtin.assert:
-        that: sonarr_service.status.ActiveState | default('') == 'active'
-        fail_msg: "sonarr.service is {{ sonarr_service.status.ActiveState | default('unknown') }}, not active"
-        success_msg: "sonarr.service is active (which on its own proves very little - see the notes at the top)"
+        that: sonarr_service.status.ActiveState == 'active'
+        fail_msg: "sonarr.service is not active ({{ sonarr_service.status.ActiveState }})"
+        success_msg: "sonarr.service is active"
 
-    - name: Retrieve Sonarr service log for debugging
+    - name: Retrieve the Sonarr systemd service log for debugging
       when: sonarr_debug_service_enabled | bool
       ansible.builtin.command:
         cmd: journalctl -xeu sonarr.service
