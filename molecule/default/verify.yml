@@ -68,7 +68,7 @@
     - name: Retrieve the Sonarr systemd service log for debugging
       when: sonarr_debug_service_enabled | bool
       ansible.builtin.command:
-        cmd: journalctl -xeu sonarr.service
+        cmd: journalctl --no-pager --output=cat --unit=sonarr.service
       changed_when: false
 
     # The published port is `sonarr_container_http_port` on both sides, so an
