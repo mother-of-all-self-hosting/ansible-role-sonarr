@@ -37,6 +37,8 @@
     sonarr_molecule_data_path: /sonarr/data
 
   tasks:
+    - name: Verify that Sonarr works
+      block:
     # The role is not included in this playbook, so its defaults are not in
     # scope. Reading defaults/main.yml directly ties the version assertion
     # below.
@@ -299,3 +301,19 @@
           - "Sonarr /ping on port {{ sonarr_container_http_port }}: {{ sonarr_ping.json.status }}"
           - "Sonarr container timezone offset: {{ sonarr_container_timezone.stdout | trim }}"
           - "Sonarr networks: {{ sonarr_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
+
+      rescue:
+        # Whatever went wrong, the reason is almost always in the systemd service log.
+        - name: Retrieve the Sonarr systemd service log
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=sonarr.service
+          register: sonarr_service_log
+          changed_when: false
+
+        - name: Show the Sonarr systemd service log
+          ansible.builtin.debug:
+            var: sonarr_service_log.stdout_lines
+
+        - name: Fail because verification did not pass
+          ansible.builtin.fail:
+            msg: "Sonarr verification failed. The systemd service log is printed above."
