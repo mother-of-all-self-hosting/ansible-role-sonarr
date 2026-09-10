@@ -39,268 +39,268 @@
   tasks:
     - name: Verify that Sonarr works
       block:
-    # The role is not included in this playbook, so its defaults are not in
-    # scope. Reading defaults/main.yml directly ties the version assertion
-    # below.
-    - name: Load the role defaults
-      ansible.builtin.include_vars:
-        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
-        name: sonarr_defaults
+        # The role is not included in this playbook, so its defaults are not in
+        # scope. Reading defaults/main.yml directly ties the version assertion
+        # below.
+        - name: Load the role defaults
+          ansible.builtin.include_vars:
+            file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+            name: sonarr_defaults
 
-    - name: Wait for the Sonarr systemd service to become active (up to 180s)
-      ansible.builtin.systemd_service:
-        name: sonarr.service
-      register: sonarr_service
-      until: sonarr_service.status.ActiveState == 'active'
-      retries: 36
-      delay: 5
-      # So that giving up is reported by the assertion below rather than as a
-      # wall of systemd unit properties.
-      failed_when: false
+        - name: Wait for the Sonarr systemd service to become active (up to 180s)
+          ansible.builtin.systemd_service:
+            name: sonarr.service
+          register: sonarr_service
+          until: sonarr_service.status.ActiveState == 'active'
+          retries: 36
+          delay: 5
+          # So that giving up is reported by the assertion below rather than as a
+          # wall of systemd unit properties.
+          failed_when: false
 
-    # `Restart=always` in the systemd unit means that even a container which crashes
-    # and gets restarted reads as active here, so this is a precondition rather than
-    # a result.
-    - name: Assert the Sonarr systemd service is active
-      ansible.builtin.assert:
-        that: sonarr_service.status.ActiveState == 'active'
-        fail_msg: "sonarr.service is not active ({{ sonarr_service.status.ActiveState }})"
-        success_msg: "sonarr.service is active"
+        # `Restart=always` in the systemd unit means that even a container which crashes
+        # and gets restarted reads as active here, so this is a precondition rather than
+        # a result.
+        - name: Assert the Sonarr systemd service is active
+          ansible.builtin.assert:
+            that: sonarr_service.status.ActiveState == 'active'
+            fail_msg: "sonarr.service is not active ({{ sonarr_service.status.ActiveState }})"
+            success_msg: "sonarr.service is active"
 
-    - name: Retrieve the Sonarr systemd service log for debugging
-      when: sonarr_debug_service_enabled | bool
-      ansible.builtin.command:
-        cmd: journalctl --no-pager --output=cat --unit=sonarr.service
-      changed_when: false
+        - name: Retrieve the Sonarr systemd service log for debugging
+          when: sonarr_debug_service_enabled | bool
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=sonarr.service
+          changed_when: false
 
-    # The published port is `sonarr_container_http_port` on both sides, so an
-    # application that ignored the role's port setting and stayed on the 8989
-    # the image exposes would leave this port answering nothing at all.
-    - name: Wait for Sonarr to answer on the port the role configured
-      ansible.builtin.uri:
-        url: "http://127.0.0.1:{{ sonarr_container_http_port }}/ping"
-        method: GET
-        follow_redirects: none
-        status_code: [200]
-      register: sonarr_ping
-      until: sonarr_ping.status == 200
-      retries: 60
-      delay: 5
-      failed_when: false
+        # The published port is `sonarr_container_http_port` on both sides, so an
+        # application that ignored the role's port setting and stayed on the 8989
+        # the image exposes would leave this port answering nothing at all.
+        - name: Wait for Sonarr to answer on the port the role configured
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ sonarr_container_http_port }}/ping"
+            method: GET
+            follow_redirects: none
+            status_code: [200]
+          register: sonarr_ping
+          until: sonarr_ping.status == 200
+          retries: 60
+          delay: 5
+          failed_when: false
 
-    - name: Assert Sonarr answered /ping from its database
-      ansible.builtin.assert:
-        that:
-          - sonarr_ping.status == 200
-          - sonarr_ping.json.status | default('') == 'OK'
-        fail_msg: >-
-          Sonarr did not answer /ping with a database-backed OK on port
-          {{ sonarr_container_http_port }}
-          (status {{ sonarr_ping.status | default('none') }},
-          body {{ sonarr_ping.json | default('none') }})
-        success_msg: "Sonarr answered /ping with status OK on port {{ sonarr_container_http_port }}"
+        - name: Assert Sonarr answered /ping from its database
+          ansible.builtin.assert:
+            that:
+              - sonarr_ping.status == 200
+              - sonarr_ping.json.status | default('') == 'OK'
+            fail_msg: >-
+              Sonarr did not answer /ping with a database-backed OK on port
+              {{ sonarr_container_http_port }}
+              (status {{ sonarr_ping.status | default('none') }},
+              body {{ sonarr_ping.json | default('none') }})
+            success_msg: "Sonarr answered /ping with status OK on port {{ sonarr_container_http_port }}"
 
-    - name: Read the configuration file Sonarr wrote into the role's data path
-      ansible.builtin.slurp:
-        src: "{{ sonarr_molecule_data_path }}/config.xml"
-      register: sonarr_config_xml
+        - name: Read the configuration file Sonarr wrote into the role's data path
+          ansible.builtin.slurp:
+            src: "{{ sonarr_molecule_data_path }}/config.xml"
+          register: sonarr_config_xml
 
-    - name: Stat the configuration file Sonarr wrote into the role's data path
-      ansible.builtin.stat:
-        path: "{{ sonarr_molecule_data_path }}/config.xml"
-      register: sonarr_config_stat
+        - name: Stat the configuration file Sonarr wrote into the role's data path
+          ansible.builtin.stat:
+            path: "{{ sonarr_molecule_data_path }}/config.xml"
+          register: sonarr_config_stat
 
-    # linuxserver.io images run s6 as root and drop to PUID/PGID. Four roles in
-    # this fleet have shipped a uid override that left a directory the image
-    # needed unwritable, so the scenario runs as a uid that is neither root nor
-    # the 1000 the image defaults to, and checks who ends up owning the files.
-    - name: Assert Sonarr wrote its configuration as the uid and gid the role was given
-      ansible.builtin.assert:
-        that:
-          - sonarr_config_stat.stat.exists
-          - sonarr_config_stat.stat.uid | int == sonarr_uid | int
-          - sonarr_config_stat.stat.gid | int == sonarr_gid | int
-        fail_msg: >-
-          {{ sonarr_molecule_data_path }}/config.xml is owned by
-          {{ sonarr_config_stat.stat.uid | default('none') }}:{{ sonarr_config_stat.stat.gid | default('none') }},
-          not by {{ sonarr_uid }}:{{ sonarr_gid }}
-        success_msg: "Sonarr wrote {{ sonarr_molecule_data_path }}/config.xml as {{ sonarr_uid }}:{{ sonarr_gid }}"
+        # linuxserver.io images run s6 as root and drop to PUID/PGID. Four roles in
+        # this fleet have shipped a uid override that left a directory the image
+        # needed unwritable, so the scenario runs as a uid that is neither root nor
+        # the 1000 the image defaults to, and checks who ends up owning the files.
+        - name: Assert Sonarr wrote its configuration as the uid and gid the role was given
+          ansible.builtin.assert:
+            that:
+              - sonarr_config_stat.stat.exists
+              - sonarr_config_stat.stat.uid | int == sonarr_uid | int
+              - sonarr_config_stat.stat.gid | int == sonarr_gid | int
+            fail_msg: >-
+              {{ sonarr_molecule_data_path }}/config.xml is owned by
+              {{ sonarr_config_stat.stat.uid | default('none') }}:{{ sonarr_config_stat.stat.gid | default('none') }},
+              not by {{ sonarr_uid }}:{{ sonarr_gid }}
+            success_msg: "Sonarr wrote {{ sonarr_molecule_data_path }}/config.xml as {{ sonarr_uid }}:{{ sonarr_gid }}"
 
-    - name: Extract the API key Sonarr generated
-      ansible.builtin.set_fact:
-        sonarr_api_key: >-
-          {{ sonarr_config_xml.content | b64decode | regex_search('<ApiKey>([0-9a-fA-F]+)</ApiKey>', '\1') | first }}
+        - name: Extract the API key Sonarr generated
+          ansible.builtin.set_fact:
+            sonarr_api_key: >-
+              {{ sonarr_config_xml.content | b64decode | regex_search('<ApiKey>([0-9a-fA-F]+)</ApiKey>', '\1') | first }}
 
-    - name: Query the version of the running Sonarr
-      ansible.builtin.uri:
-        url: "http://127.0.0.1:{{ sonarr_container_http_port }}/api/v3/system/status"
-        method: GET
-        follow_redirects: none
-        headers:
-          X-Api-Key: "{{ sonarr_api_key }}"
-        status_code: [200]
-      register: sonarr_status
+        - name: Query the version of the running Sonarr
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ sonarr_container_http_port }}/api/v3/system/status"
+            method: GET
+            follow_redirects: none
+            headers:
+              X-Api-Key: "{{ sonarr_api_key }}"
+            status_code: [200]
+          register: sonarr_status
 
-    # Sonarr's own versions have four components (4.0.19.2979) while the
-    # linuxserver.io tag the role pins has three (4.0.19), so the pinned value
-    # is matched as a prefix - with a trailing dot, so that 4.0.1 could never
-    # be satisfied by a running 4.0.19.
-    - name: Assert the running Sonarr is the version this role installs
-      ansible.builtin.assert:
-        that:
-          - >-
-            sonarr_status.json.version == sonarr_defaults.sonarr_version
-            or sonarr_status.json.version.startswith(sonarr_defaults.sonarr_version ~ '.')
-          - >-
-            sonarr_status.json.packageVersion == sonarr_defaults.sonarr_version
-            or sonarr_status.json.packageVersion.startswith(sonarr_defaults.sonarr_version ~ '.')
-          - sonarr_status.json.isDocker
-          - sonarr_status.json.appData == '/config'
-        fail_msg: "Sonarr reports {{ sonarr_status.json.version | default('none') }}, expected {{ sonarr_defaults.sonarr_version }}"
-        success_msg: "Sonarr reports {{ sonarr_status.json.version }}"
+        # Sonarr's own versions have four components (4.0.19.2979) while the
+        # linuxserver.io tag the role pins has three (4.0.19), so the pinned value
+        # is matched as a prefix - with a trailing dot, so that 4.0.1 could never
+        # be satisfied by a running 4.0.19.
+        - name: Assert the running Sonarr is the version this role installs
+          ansible.builtin.assert:
+            that:
+              - >-
+                sonarr_status.json.version == sonarr_defaults.sonarr_version
+                or sonarr_status.json.version.startswith(sonarr_defaults.sonarr_version ~ '.')
+              - >-
+                sonarr_status.json.packageVersion == sonarr_defaults.sonarr_version
+                or sonarr_status.json.packageVersion.startswith(sonarr_defaults.sonarr_version ~ '.')
+              - sonarr_status.json.isDocker
+              - sonarr_status.json.appData == '/config'
+            fail_msg: "Sonarr reports {{ sonarr_status.json.version | default('none') }}, expected {{ sonarr_defaults.sonarr_version }}"
+            success_msg: "Sonarr reports {{ sonarr_status.json.version }}"
 
-    - name: Read the timezone offset inside the Sonarr container
-      ansible.builtin.command:
-        cmd: "docker exec {{ sonarr_defaults.sonarr_identifier }} date +%z"
-      register: sonarr_container_timezone
-      changed_when: false
+        - name: Read the timezone offset inside the Sonarr container
+          ansible.builtin.command:
+            cmd: "docker exec {{ sonarr_defaults.sonarr_identifier }} date +%z"
+          register: sonarr_container_timezone
+          changed_when: false
 
-    - name: Assert the container runs in the timezone the role configured
-      ansible.builtin.assert:
-        that: sonarr_container_timezone.stdout | trim == sonarr_molecule_expected_timezone_offset
-        fail_msg: >-
-          The container reports UTC offset {{ sonarr_container_timezone.stdout | trim }}, not the
-          {{ sonarr_molecule_expected_timezone_offset }} that sonarr_timezone={{ sonarr_timezone }} calls for
-        success_msg: "The container runs at UTC offset {{ sonarr_molecule_expected_timezone_offset }}, as sonarr_timezone asks"
+        - name: Assert the container runs in the timezone the role configured
+          ansible.builtin.assert:
+            that: sonarr_container_timezone.stdout | trim == sonarr_molecule_expected_timezone_offset
+            fail_msg: >-
+              The container reports UTC offset {{ sonarr_container_timezone.stdout | trim }}, not the
+              {{ sonarr_molecule_expected_timezone_offset }} that sonarr_timezone={{ sonarr_timezone }} calls for
+            success_msg: "The container runs at UTC offset {{ sonarr_molecule_expected_timezone_offset }}, as sonarr_timezone asks"
 
-    - name: Inspect the Sonarr container
-      ansible.builtin.command:
-        cmd: "docker container inspect {{ sonarr_defaults.sonarr_identifier }}"
-      register: sonarr_container_raw
-      changed_when: false
+        - name: Inspect the Sonarr container
+          ansible.builtin.command:
+            cmd: "docker container inspect {{ sonarr_defaults.sonarr_identifier }}"
+          register: sonarr_container_raw
+          changed_when: false
 
-    - name: Keep the parts of the container definition worth asserting on
-      ansible.builtin.set_fact:
-        sonarr_container: "{{ (sonarr_container_raw.stdout | from_json) | first }}"
+        - name: Keep the parts of the container definition worth asserting on
+          ansible.builtin.set_fact:
+            sonarr_container: "{{ (sonarr_container_raw.stdout | from_json) | first }}"
 
-    - name: Assert the role's environment reached the container
-      ansible.builtin.assert:
-        that:
-          - "('PUID=' ~ sonarr_uid) in sonarr_container.Config.Env"
-          - "('PGID=' ~ sonarr_gid) in sonarr_container.Config.Env"
-          - "('TZ=' ~ sonarr_timezone) in sonarr_container.Config.Env"
-          - "('SONARR__SERVER__PORT=' ~ sonarr_container_http_port) in sonarr_container.Config.Env"
-          - "'SONARR_MOLECULE_MARKER=rendered-by-the-role' in sonarr_container.Config.Env"
-        fail_msg: "The container environment is not what templates/env.j2 should have produced: {{ sonarr_container.Config.Env }}"
-        success_msg: "The container environment is the one templates/env.j2 produced"
+        - name: Assert the role's environment reached the container
+          ansible.builtin.assert:
+            that:
+              - "('PUID=' ~ sonarr_uid) in sonarr_container.Config.Env"
+              - "('PGID=' ~ sonarr_gid) in sonarr_container.Config.Env"
+              - "('TZ=' ~ sonarr_timezone) in sonarr_container.Config.Env"
+              - "('SONARR__SERVER__PORT=' ~ sonarr_container_http_port) in sonarr_container.Config.Env"
+              - "'SONARR_MOLECULE_MARKER=rendered-by-the-role' in sonarr_container.Config.Env"
+            fail_msg: "The container environment is not what templates/env.j2 should have produced: {{ sonarr_container.Config.Env }}"
+            success_msg: "The container environment is the one templates/env.j2 produced"
 
-    # Four roles in this fleet accepted `*_container_additional_volumes` and
-    # then dropped it on the floor, so this checks both that the entry became a
-    # real `--mount` with its `readonly` option honoured, and that the mount
-    # actually carries data through.
-    - name: Assert the additional volume became a real read-only mount
-      ansible.builtin.assert:
-        that:
-          - sonarr_container.Mounts | selectattr('Destination', 'equalto', '/config') | list | length == 1
-          - (sonarr_container.Mounts | selectattr('Destination', 'equalto', '/config') | first).Source == sonarr_molecule_data_path
-          - sonarr_container.Mounts | selectattr('Destination', 'equalto', sonarr_molecule_extra_volume_container_path) | list | length == 1
-          - >-
-            (sonarr_container.Mounts | selectattr('Destination', 'equalto', sonarr_molecule_extra_volume_container_path) | first).Source
-            == sonarr_molecule_extra_volume_host_path
-          - not (sonarr_container.Mounts | selectattr('Destination', 'equalto', sonarr_molecule_extra_volume_container_path) | first).RW
-        fail_msg: "sonarr_container_additional_volumes did not turn into the expected mounts: {{ sonarr_container.Mounts }}"
-        success_msg: "sonarr_container_additional_volumes turned into a read-only bind mount"
+        # Four roles in this fleet accepted `*_container_additional_volumes` and
+        # then dropped it on the floor, so this checks both that the entry became a
+        # real `--mount` with its `readonly` option honoured, and that the mount
+        # actually carries data through.
+        - name: Assert the additional volume became a real read-only mount
+          ansible.builtin.assert:
+            that:
+              - sonarr_container.Mounts | selectattr('Destination', 'equalto', '/config') | list | length == 1
+              - (sonarr_container.Mounts | selectattr('Destination', 'equalto', '/config') | first).Source == sonarr_molecule_data_path
+              - sonarr_container.Mounts | selectattr('Destination', 'equalto', sonarr_molecule_extra_volume_container_path) | list | length == 1
+              - >-
+                (sonarr_container.Mounts | selectattr('Destination', 'equalto', sonarr_molecule_extra_volume_container_path) | first).Source
+                == sonarr_molecule_extra_volume_host_path
+              - not (sonarr_container.Mounts | selectattr('Destination', 'equalto', sonarr_molecule_extra_volume_container_path) | first).RW
+            fail_msg: "sonarr_container_additional_volumes did not turn into the expected mounts: {{ sonarr_container.Mounts }}"
+            success_msg: "sonarr_container_additional_volumes turned into a read-only bind mount"
 
-    - name: Read the marker through the additional volume
-      ansible.builtin.command:
-        cmd: >-
-          docker exec {{ sonarr_defaults.sonarr_identifier }}
-          cat {{ sonarr_molecule_extra_volume_container_path }}/marker
-      register: sonarr_extra_volume_marker
-      changed_when: false
+        - name: Read the marker through the additional volume
+          ansible.builtin.command:
+            cmd: >-
+              docker exec {{ sonarr_defaults.sonarr_identifier }}
+              cat {{ sonarr_molecule_extra_volume_container_path }}/marker
+          register: sonarr_extra_volume_marker
+          changed_when: false
 
-    - name: Assert the additional volume carries data into the container
-      ansible.builtin.assert:
-        that: sonarr_extra_volume_marker.stdout | trim == sonarr_molecule_extra_volume_marker
-        fail_msg: "The additional volume did not carry the marker into the container"
-        success_msg: "The additional volume carries the marker into the container"
+        - name: Assert the additional volume carries data into the container
+          ansible.builtin.assert:
+            that: sonarr_extra_volume_marker.stdout | trim == sonarr_molecule_extra_volume_marker
+            fail_msg: "The additional volume did not carry the marker into the container"
+            success_msg: "The additional volume carries the marker into the container"
 
-    - name: Assert the container joined both its own network and the additional one
-      ansible.builtin.assert:
-        that:
-          - sonarr_defaults.sonarr_identifier in sonarr_container.NetworkSettings.Networks
-          - sonarr_molecule_extra_network in sonarr_container.NetworkSettings.Networks
-        fail_msg: >-
-          The container is on {{ sonarr_container.NetworkSettings.Networks.keys() | list }},
-          which is not the base network plus {{ sonarr_molecule_extra_network }}
-        success_msg: "The container is on its own network and on {{ sonarr_molecule_extra_network }}"
+        - name: Assert the container joined both its own network and the additional one
+          ansible.builtin.assert:
+            that:
+              - sonarr_defaults.sonarr_identifier in sonarr_container.NetworkSettings.Networks
+              - sonarr_molecule_extra_network in sonarr_container.NetworkSettings.Networks
+            fail_msg: >-
+              The container is on {{ sonarr_container.NetworkSettings.Networks.keys() | list }},
+              which is not the base network plus {{ sonarr_molecule_extra_network }}
+            success_msg: "The container is on its own network and on {{ sonarr_molecule_extra_network }}"
 
-    # The Traefik router rule, the strip-prefix middleware and the load
-    # balancer port are all derived from role variables, so a label file that
-    # stopped tracking them (or a load balancer pointed at the image's 8989
-    # while the application listens on 8181) shows up here.
-    - name: Assert the Traefik labels describe what the role deployed
-      ansible.builtin.assert:
-        that:
-          - sonarr_container.Config.Labels['traefik.enable'] == 'true'
-          - sonarr_container.Config.Labels['traefik.docker.network'] == sonarr_defaults.sonarr_identifier
-          - "sonarr_container.Config.Labels['traefik.http.routers.sonarr.rule'] == 'Host(`sonarr.example.com`) && PathPrefix(`/sonarr`)'"
-          - sonarr_container.Config.Labels['traefik.http.routers.sonarr.middlewares'] == 'sonarr-slashless-redirect,sonarr-strip-prefix'
-          - sonarr_container.Config.Labels['traefik.http.middlewares.sonarr-strip-prefix.stripprefix.prefixes'] == '/sonarr'
-          - sonarr_container.Config.Labels['traefik.http.routers.sonarr.entrypoints'] == 'web-secure'
-          - sonarr_container.Config.Labels['traefik.http.routers.sonarr.tls'] == 'true'
-          - sonarr_container.Config.Labels['traefik.http.services.sonarr.loadbalancer.server.port'] == sonarr_container_http_port | string
-        fail_msg: "The Traefik labels are not what templates/labels.j2 should have produced: {{ sonarr_container.Config.Labels }}"
-        success_msg: "The Traefik labels describe the hostname, path prefix and port the role was given"
+        # The Traefik router rule, the strip-prefix middleware and the load
+        # balancer port are all derived from role variables, so a label file that
+        # stopped tracking them (or a load balancer pointed at the image's 8989
+        # while the application listens on 8181) shows up here.
+        - name: Assert the Traefik labels describe what the role deployed
+          ansible.builtin.assert:
+            that:
+              - sonarr_container.Config.Labels['traefik.enable'] == 'true'
+              - sonarr_container.Config.Labels['traefik.docker.network'] == sonarr_defaults.sonarr_identifier
+              - "sonarr_container.Config.Labels['traefik.http.routers.sonarr.rule'] == 'Host(`sonarr.example.com`) && PathPrefix(`/sonarr`)'"
+              - sonarr_container.Config.Labels['traefik.http.routers.sonarr.middlewares'] == 'sonarr-slashless-redirect,sonarr-strip-prefix'
+              - sonarr_container.Config.Labels['traefik.http.middlewares.sonarr-strip-prefix.stripprefix.prefixes'] == '/sonarr'
+              - sonarr_container.Config.Labels['traefik.http.routers.sonarr.entrypoints'] == 'web-secure'
+              - sonarr_container.Config.Labels['traefik.http.routers.sonarr.tls'] == 'true'
+              - sonarr_container.Config.Labels['traefik.http.services.sonarr.loadbalancer.server.port'] == sonarr_container_http_port | string
+            fail_msg: "The Traefik labels are not what templates/labels.j2 should have produced: {{ sonarr_container.Config.Labels }}"
+            success_msg: "The Traefik labels describe the hostname, path prefix and port the role was given"
 
-    - name: Assert the free-form label and extra argument reached the container
-      ansible.builtin.assert:
-        that:
-          - sonarr_container.Config.Labels['mash.molecule.additional_label'] == 'present'
-          - sonarr_container.Config.Labels['mash.molecule.extra_argument'] == 'present'
-        fail_msg: "sonarr_container_labels_additional_labels or sonarr_container_extra_arguments went nowhere"
-        success_msg: "sonarr_container_labels_additional_labels and sonarr_container_extra_arguments reached the container"
+        - name: Assert the free-form label and extra argument reached the container
+          ansible.builtin.assert:
+            that:
+              - sonarr_container.Config.Labels['mash.molecule.additional_label'] == 'present'
+              - sonarr_container.Config.Labels['mash.molecule.extra_argument'] == 'present'
+            fail_msg: "sonarr_container_labels_additional_labels or sonarr_container_extra_arguments went nowhere"
+            success_msg: "sonarr_container_labels_additional_labels and sonarr_container_extra_arguments reached the container"
 
-    # Roles elsewhere in this fleet have emitted Traefik labels from outside
-    # their `*_labels_traefik_enabled` conditional, which nobody notices until
-    # a Traefik instance starts routing to a container that opted out. The
-    # label file is rendered a second time here with Traefik switched off, so
-    # that a leak out of the conditional fails the suite rather than the
-    # operator's reverse proxy.
-    - name: Render the label file with Traefik disabled
-      ansible.builtin.template:
-        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/labels.j2"
-        dest: /tmp/sonarr-labels-with-traefik-disabled
-        mode: "0644"
-      vars:
-        sonarr_container_labels_traefik_enabled: false
-      changed_when: false
+        # Roles elsewhere in this fleet have emitted Traefik labels from outside
+        # their `*_labels_traefik_enabled` conditional, which nobody notices until
+        # a Traefik instance starts routing to a container that opted out. The
+        # label file is rendered a second time here with Traefik switched off, so
+        # that a leak out of the conditional fails the suite rather than the
+        # operator's reverse proxy.
+        - name: Render the label file with Traefik disabled
+          ansible.builtin.template:
+            src: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/labels.j2"
+            dest: /tmp/sonarr-labels-with-traefik-disabled
+            mode: "0644"
+          vars:
+            sonarr_container_labels_traefik_enabled: false
+          changed_when: false
 
-    - name: Read the label file rendered with Traefik disabled
-      ansible.builtin.slurp:
-        src: /tmp/sonarr-labels-with-traefik-disabled
-      register: sonarr_labels_with_traefik_disabled
+        - name: Read the label file rendered with Traefik disabled
+          ansible.builtin.slurp:
+            src: /tmp/sonarr-labels-with-traefik-disabled
+          register: sonarr_labels_with_traefik_disabled
 
-    - name: Assert nothing Traefik-related is emitted when Traefik is disabled
-      ansible.builtin.assert:
-        that:
-          # Proves the render happened at all, rather than producing an empty
-          # file that would satisfy the check below for the wrong reason.
-          - "'mash.molecule.additional_label=present' in (sonarr_labels_with_traefik_disabled.content | b64decode)"
-          - "'traefik' not in (sonarr_labels_with_traefik_disabled.content | b64decode)"
-        fail_msg: >-
-          templates/labels.j2 emits Traefik labels even with
-          sonarr_container_labels_traefik_enabled set to false
-        success_msg: "templates/labels.j2 emits no Traefik labels when Traefik is disabled"
+        - name: Assert nothing Traefik-related is emitted when Traefik is disabled
+          ansible.builtin.assert:
+            that:
+              # Proves the render happened at all, rather than producing an empty
+              # file that would satisfy the check below for the wrong reason.
+              - "'mash.molecule.additional_label=present' in (sonarr_labels_with_traefik_disabled.content | b64decode)"
+              - "'traefik' not in (sonarr_labels_with_traefik_disabled.content | b64decode)"
+            fail_msg: >-
+              templates/labels.j2 emits Traefik labels even with
+              sonarr_container_labels_traefik_enabled set to false
+            success_msg: "templates/labels.j2 emits no Traefik labels when Traefik is disabled"
 
-    - name: Show the Sonarr verification summary
-      ansible.builtin.debug:
-        msg:
-          - "Sonarr systemd: {{ sonarr_service.status.ActiveState }}"
-          - "Sonarr version: {{ sonarr_status.json.version }} (package {{ sonarr_status.json.packageVersion }})"
-          - "Sonarr /ping on port {{ sonarr_container_http_port }}: {{ sonarr_ping.json.status }}"
-          - "Sonarr container timezone offset: {{ sonarr_container_timezone.stdout | trim }}"
-          - "Sonarr networks: {{ sonarr_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
+        - name: Show the Sonarr verification summary
+          ansible.builtin.debug:
+            msg:
+              - "Sonarr systemd: {{ sonarr_service.status.ActiveState }}"
+              - "Sonarr version: {{ sonarr_status.json.version }} (package {{ sonarr_status.json.packageVersion }})"
+              - "Sonarr /ping on port {{ sonarr_container_http_port }}: {{ sonarr_ping.json.status }}"
+              - "Sonarr container timezone offset: {{ sonarr_container_timezone.stdout | trim }}"
+              - "Sonarr networks: {{ sonarr_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
 
       rescue:
         # Whatever went wrong, the reason is almost always in the systemd service log.
