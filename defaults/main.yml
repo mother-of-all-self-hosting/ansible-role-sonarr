@@ -112,6 +112,9 @@ sonarr_container_labels_additional_labels: "{{ sonarr_container_labels_additiona
 sonarr_container_labels_additional_labels_auto: []
 sonarr_container_labels_additional_labels_custom: []
 
+# Specify the size of the container's tmpfs volume (/run)
+sonarr_container_tmpfs_run_size: 128m
+
 # A list of extra arguments to pass to the container (`docker create` command)
 sonarr_container_extra_arguments: "{{ sonarr_container_extra_arguments_auto + sonarr_container_extra_arguments_custom }}"
 sonarr_container_extra_arguments_auto: []
