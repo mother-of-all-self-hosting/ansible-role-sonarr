@@ -217,7 +217,7 @@ sonarr_container_cleanup_command: |
   exit 1
 
 # Specify the timezone
-sonarr_timezone: "Etc/UTC"
+sonarr_environment_variables_tz: "Etc/UTC"
 
 # sonarr_environment_variables_additional_variables contains a multiline string with additional environment variables to pass to the container.
 #
