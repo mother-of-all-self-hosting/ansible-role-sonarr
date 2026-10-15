@@ -108,10 +108,11 @@
 
         # The published port is `sonarr_container_http_port` on both sides, so an
         # application that ignored the role's port setting and stayed on the 8989
-        # the image exposes would leave this port answering nothing at all.
+        # the image exposes would leave this port answering nothing at all. Sonarr
+        # serves itself under the configured path prefix.
         - name: Wait for Sonarr to answer on the port the role configured
           ansible.builtin.uri:
-            url: "http://127.0.0.1:{{ sonarr_container_http_port }}/ping"
+            url: "http://127.0.0.1:{{ sonarr_container_http_port }}{{ sonarr_expected_path_prefix }}/ping"
             method: GET
             follow_redirects: none
             status_code: [200]
@@ -251,7 +252,7 @@
 
         - name: Query the version of the running Sonarr
           ansible.builtin.uri:
-            url: "http://127.0.0.1:{{ sonarr_container_http_port }}/api/v3/system/status"
+            url: "http://127.0.0.1:{{ sonarr_container_http_port }}{{ sonarr_expected_path_prefix }}/api/v3/system/status"
             method: GET
             follow_redirects: none
             headers:
@@ -313,10 +314,34 @@
             that:
               - sonarr_container.Config.Labels['traefik.enable'] == 'true'
               - sonarr_container.Config.Labels['traefik.http.routers.sonarr.rule'] == 'Host(`' ~ sonarr_expected_hostname ~ '`) && PathPrefix(`' ~ sonarr_expected_path_prefix ~ '`)'
-              - sonarr_container.Config.Labels['traefik.http.middlewares.sonarr-strip-prefix.stripprefix.prefixes'] == sonarr_expected_path_prefix
+              - "'traefik.http.middlewares.sonarr-strip-prefix.stripprefix.prefixes' not in sonarr_container.Config.Labels"
               - sonarr_container.Config.Labels['traefik.http.services.sonarr.loadbalancer.server.port'] == '8181'
             fail_msg: "The Traefik labels are not what templates/labels.j2 should have produced: {{ sonarr_container.Config.Labels }}"
             success_msg: "The Traefik labels route {{ sonarr_expected_hostname }}{{ sonarr_expected_path_prefix }} to port 8181"
+
+        # Sonarr's web UI builds every asset and API URL from these, so they must
+        # carry the prefix Traefik routes on.
+        - name: Read the URL base Sonarr hands to its web UI
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ sonarr_container_http_port }}{{ sonarr_expected_path_prefix }}/initialize.json"
+            method: GET
+            return_content: true
+            follow_redirects: none
+          register: sonarr_initialize
+          changed_when: false
+
+        - name: Assert that Sonarr serves itself under the configured path prefix
+          ansible.builtin.assert:
+            that:
+              - sonarr_initialize_json.urlBase == sonarr_expected_path_prefix
+              - sonarr_initialize_json.apiRoot == sonarr_expected_path_prefix ~ '/api/v3'
+            fail_msg: >-
+              Sonarr hands its web UI the URL base {{ sonarr_initialize_json.urlBase | default('none') }}
+              and the API root {{ sonarr_initialize_json.apiRoot | default('none') }},
+              not ones under {{ sonarr_expected_path_prefix }}
+            success_msg: "Sonarr serves its web UI and API under {{ sonarr_expected_path_prefix }}"
+          vars:
+            sonarr_initialize_json: "{{ sonarr_initialize.content | from_json }}"
 
         - name: Assert that the additional labels and extra arguments reached the container
           ansible.builtin.assert:

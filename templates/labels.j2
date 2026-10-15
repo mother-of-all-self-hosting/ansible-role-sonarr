@@ -22,10 +22,10 @@ traefik.http.middlewares.{{ sonarr_identifier }}-slashless-redirect.redirectrege
 {% set middlewares = middlewares + [sonarr_identifier + '-slashless-redirect'] %}
 {% endif %}
 
-{% if sonarr_container_labels_traefik_path_prefix != '/' %}
-traefik.http.middlewares.{{ sonarr_identifier }}-strip-prefix.stripprefix.prefixes={{ sonarr_container_labels_traefik_path_prefix }}
-{% set middlewares = middlewares + [sonarr_identifier + '-strip-prefix'] %}
-{% endif %}
+{#
+  Intentionally not adding a stripPrefix middleware.
+  Sonarr serves itself under the prefix via SONARR__SERVER__URLBASE (see `env.j2`).
+#}
 
 {% if sonarr_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
 {% for name, value in sonarr_container_labels_traefik_additional_request_headers.items() %}
