@@ -79,6 +79,9 @@ sonarr_container_labels_traefik_priority: 0
 sonarr_container_labels_traefik_entrypoints: web-secure
 sonarr_container_labels_traefik_tls: "{{ sonarr_container_labels_traefik_entrypoints != 'web' }}"
 sonarr_container_labels_traefik_tls_certResolver: default # noqa var-naming
+sonarr_container_labels_traefik_middleware_basic_auth_enabled: false
+# See: https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/basicauth/
+sonarr_container_labels_traefik_middleware_basic_auth_users: ""
 
 # Controls which additional headers to attach to all HTTP requests.
 # To add your own custom request headers, use `sonarr_container_labels_traefik_additional_request_headers_custom`

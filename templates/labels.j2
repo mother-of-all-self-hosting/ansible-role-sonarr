@@ -16,6 +16,11 @@ traefik.docker.network={{ sonarr_container_labels_traefik_docker_network }}
 
 {% set middlewares = [] %}
 
+{% if sonarr_container_labels_traefik_middleware_basic_auth_enabled %}
+{% set middlewares = middlewares + [sonarr_identifier + '-basic-auth'] %}
+traefik.http.middlewares.{{ sonarr_identifier }}-basic-auth.basicauth.users={{ sonarr_container_labels_traefik_middleware_basic_auth_users }}
+{% endif %}
+
 {% if sonarr_container_labels_traefik_path_prefix != '/' %}
 traefik.http.middlewares.{{ sonarr_identifier }}-slashless-redirect.redirectregex.regex=^({{ sonarr_container_labels_traefik_path_prefix | quote }})$
 traefik.http.middlewares.{{ sonarr_identifier }}-slashless-redirect.redirectregex.replacement=${1}/
