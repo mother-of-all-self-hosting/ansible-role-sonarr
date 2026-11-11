@@ -22,7 +22,7 @@ traefik.http.middlewares.{{ sonarr_identifier }}-basic-auth.basicauth.users={{ s
 {% endif %}
 
 {% if sonarr_container_labels_traefik_path_prefix != '/' %}
-traefik.http.middlewares.{{ sonarr_identifier }}-slashless-redirect.redirectregex.regex=^({{ sonarr_container_labels_traefik_path_prefix | quote }})$
+traefik.http.middlewares.{{ sonarr_identifier }}-slashless-redirect.redirectregex.regex=^(https?://[^/]+{{ sonarr_container_labels_traefik_path_prefix | regex_escape }})$
 traefik.http.middlewares.{{ sonarr_identifier }}-slashless-redirect.redirectregex.replacement=${1}/
 {% set middlewares = middlewares + [sonarr_identifier + '-slashless-redirect'] %}
 {% endif %}
