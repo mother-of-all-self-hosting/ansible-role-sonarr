@@ -24,7 +24,6 @@
   with_items:
     - sonarr_uid
     - sonarr_gid
-    - sonarr_hostname
 
 - name: Run if Traefik is enabled
   when: sonarr_container_labels_traefik_enabled | bool
